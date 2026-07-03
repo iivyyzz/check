@@ -8,84 +8,75 @@
         body {
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
             background-image: url('https://i.pinimg.com/736x/e3/20/7f/e3207f35fe921619f10e7d012a5b1eeb.jpg'); 
-            background-size: contain; /* Đổi sang contain hoặc chỉnh lại tỷ lệ để giữ form ảnh */
-            background-position: left center; /* DỜI HÌNH BỌT BIỂN SANG GÓC TRÁI MÀN HÌNH */
+            background-size: contain; 
+            background-position: left center; 
             background-repeat: no-repeat;
-            background-color: #f4f4f4; /* Nền xám sáng nhẹ cho phần còn lại tương tự Time.is */
+            background-color: #ffffff; /* THAY ĐỔI: Đồng bộ nền trắng tinh toàn bộ trang */
             margin: 0;
             padding: 0;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             overflow: hidden;
             position: relative;
         }
-        
-        /* Lớp phủ nhẹ giúp hình nền hài hòa, chữ đen nổi rõ */
-        body::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255, 255, 255, 0.2); 
-            z-index: 1;
-        }
 
         .container {
             position: relative;
             z-index: 2;
-            width: 85%;
-            max-width: 1200px;
+            width: 90%;
+            max-width: 1300px;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            /* Đẩy toàn bộ cụm hiển thị lên phía trên để né bọt biển */
+            margin-top: -120px; 
         }
 
         .title {
-            font-size: 24px;
-            color: #2b2b2b;
+            font-size: 20px;
+            color: #333333;
             font-weight: 400;
-            margin-bottom: 0px;
+            margin-bottom: 10px;
             text-align: center;
             width: 100%;
         }
 
-        /* ĐỒNG HỒ SỐ CĂN GIỮA MÀN HÌNH - SIÊU TO - MÀU ĐEN ĐẬM */
+        /* Khung chứa bao gồm Đồng hồ (Trái) và Ngày tháng (Phải) */
+        .main-display {
+            display: flex;
+            align-items: flex-end; /* Căn hàng theo cạnh đáy dưới */
+            justify-content: center;
+            width: 100%;
+            gap: 40px; /* Khoảng cách giữa đồng hồ và ngày tháng */
+        }
+
+        /* ĐỒNG HỒ SỐ TO ĐẬM */
         .time {
-            font-size: 180px; /* Tăng kích thước chữ cực lớn như hình mẫu */
+            font-size: 180px; 
             font-weight: 800; 
             font-family: Arial, Helvetica, sans-serif; 
-            color: #262626; /* Màu đen carbon mờ của Time.is */
-            margin: 10px 0;
-            line-height: 1;
-            letter-spacing: -5px; /* Ép sát các số lại với nhau */
-            text-align: center;
-            width: 100%;
+            color: #262626; 
+            line-height: 0.9;
+            letter-spacing: -4px;
+            margin: 0;
         }
 
-        /* THÔNG TIN NGÀY THÁNG DỜI XUỐNG GÓC TRÁI BÊN DƯỚI ĐỒNG HỒ */
-        .date-box {
-            width: 100%;
-            display: flex;
-            justify-content: flex-start; /* Đẩy nội dung hoàn toàn sang bên trái */
-            padding-left: 5%; /* Căn lề lùi vào một chút cho đẹp */
-            margin-top: 10px;
-        }
-
+        /* PHẦN NGÀY THÁNG ĐƯỢC ĐẨY SANG GÓC PHẢI CỦA ĐỒNG HỒ */
         .date {
-            font-size: 32px; /* Chữ ngày tháng to, rõ ràng */
+            font-size: 28px; 
             color: #262626;
-            font-weight: 400;
-            text-align: left;
+            font-weight: 500;
+            white-space: nowrap; /* Không cho chữ tự động xuống dòng */
+            margin-bottom: 10px; /* Nhấc chữ lên một chút cho cân với đáy số đồng hồ */
         }
 
         .instruction {
             position: absolute;
-            bottom: 30px;
-            right: 50px; /* Đẩy dòng ghi chú nhỏ sang góc phải dưới cùng cho gọn */
-            font-size: 14px;
-            color: #666666;
+            bottom: 25px;
+            right: 40px; 
+            font-size: 13px;
+            color: #777777;
             font-weight: bold;
         }
     </style>
@@ -95,9 +86,9 @@
 <div class="container">
     <div class="title">Thời gian ở Thành phố Hồ Chí Minh, Việt Nam hiện tại:</div>
     
-    <div class="time" id="clock">00:00:00</div>
-    
-    <div class="date-box">
+    <div class="main-display">
+        <div class="time" id="clock">00:00:00</div>
+        
         <div class="date" id="date-string">Đang đồng bộ...</div>
     </div>
 </div>
@@ -109,7 +100,7 @@
 <script>
     let currentTimestamp = null;
 
-    // Hàm tính toán số tuần chuẩn của năm
+    // Hàm tính số tuần
     function getWeekNumber(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -118,12 +109,13 @@
         return weekNo;
     }
 
-    // Hàm viết hoa chữ cái đầu (Thứ Sáu, Tháng Bảy...)
-    function capitalizeWords(str) {
-        return str.replace(/\b\w/g, l => l.toUpperCase());
+    // THAY ĐỔI: Hàm sửa lỗi chính tả - Chỉ viết in hoa chữ cái đầu tiên của toàn bộ chuỗi
+    function formatStandardVietnameseDate(str) {
+        if (!str) return str;
+        let lower = str.toLowerCase();
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
     }
 
-    // Lấy thời gian chuẩn từ API quốc tế
     async function fetchExactTime() {
         try {
             let response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
@@ -141,7 +133,6 @@
         }
     }
 
-    // Chạy bộ đếm giây liên tục
     setInterval(() => {
         if (currentTimestamp !== null) {
             currentTimestamp += 1000;
@@ -154,16 +145,17 @@
 
             let options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
             let rawDateStr = t.toLocaleDateString('vi-VN', options); 
-            let formattedDate = capitalizeWords(rawDateStr);
-
+            
+            // Xử lý chuỗi ngày tháng chuẩn chỉnh (Chỉ hoa chữ đầu câu)
+            let formattedDate = formatStandardVietnameseDate(rawDateStr);
             let weekNum = getWeekNumber(t);
-            // Hiển thị dạng: Thứ Sáu, 3 Tháng Bảy, 2026, tuần 27
+            
             document.getElementById('date-string').innerText = `${formattedDate}, tuần ${weekNum}`;
         }
     }, 1000);
 
     fetchExactTime();
-    setInterval(fetchExactTime, 20000); // Tự động đồng bộ lại sau mỗi 20 giây
+    setInterval(fetchExactTime, 20000);
 </script>
 
 </body>
