@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Thời Gian Thực Đăng Ký</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            text-align: center;
+            background-image: url('https://i.pinimg.com/736x/e3/20/7f/e3207f35fe921619f10e7d012a5b1eeb.jpg'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(30, 39, 46, 0.4); 
+            z-index: 1;
+        }
+        .container {
+            position: relative;
+            z-index: 2;
+            background: rgba(47, 54, 64, 0.95); 
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 2px solid #487eb0;
+            max-width: 550px;
+            width: 90%;
+        }
+        .title {
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #718093;
+            margin-bottom: 5px;
+        }
+        /* THAY ĐỔI: Font chữ đồng hồ dạng sans-serif dày, lớn và nét vuông đậm như Time.is */
+        .time {
+            font-size: 85px;
+            font-weight: 800;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #00d2d3;
+            margin: 5px 0;
+            letter-spacing: -2px;
+            text-shadow: 0 0 10px rgba(0, 210, 211, 0.3);
+        }
+        .date {
+            font-size: 20px;
+            color: #f5f6fa;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+        .auth-code {
+            display: inline-block;
+            border: 2px dashed #f1c40f;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: #f1c40f;
+            font-weight: bold;
+            font-size: 18px;
+            letter-spacing: 1px;
+            background-color: rgba(241, 196, 15, 0.05);
+            margin-bottom: 10px;
+        }
+        .instruction {
+            margin-top: 25px;
+            font-size: 13px;
+            color: #a4b0be;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title">Thời gian Việt Nam chuẩn (ICT)</div>
+    <div class="time" id="clock">00:00:00</div>
+    <div class="date" id="date-string">Đang đồng bộ...</div>
+    
+    <div class="auth-code">MÃ XÁC THỰC: SV-TD-99</div>
+    
+    <div class="instruction">
+        * Nhân viên chụp ảnh màn hình này kèm cử chỉ tay yêu cầu để điểm danh *
+    </div>
+</div>
+
+<script>
+    let currentTimestamp = null;
+
+    // Hàm tính toán tuần thứ bao nhiêu trong năm giống Time.is
+    function getWeekNumber(d) {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+        var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+        return weekNo;
+    }
+
+    // Viết hoa chữ cái đầu của mỗi từ trong chuỗi ngày tháng
+    function capitalizeWords(str) {
+        return str.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    async function fetchExactTime() {
+        try {
+            let response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
+            let data = await response.json();
+            currentTimestamp = new Date(data.datetime).getTime();
+        } catch (e) {
+            try {
+                let response = await fetch('https://timeapi.io/api/Time/current/zone?timeZone=Asia/Ho_Chi_Minh');
+                let data = await response.json();
+                currentTimestamp = new Date(data.dateTime).getTime();
+            } catch (err) {
+                console.log("Không thể kết nối API thời gian.");
+                if(!currentTimestamp) currentTimestamp = new Date().getTime();
+            }
+        }
+    }
+
+    // Chạy bộ đếm đồng hồ
+    setInterval(() => {
+        if (currentTimestamp !== null) {
+            currentTimestamp += 1000;
+            let t = new Date(currentTimestamp);
+            
+            // 1. Định dạng Giờ:Phút:Giây
+            let h = String(t.getHours()).padStart(2, '0');
+            let m = String(t.getMinutes()).padStart(2, '0');
+            let s = String(t.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').innerText = `${h}:${m}:${s}`;
+
+            // 2. Định dạng chuỗi ngày tháng viết hoa chữ cái đầu giống Time.is
+            let options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            let rawDateStr = t.toLocaleDateString('vi-VN', options); 
+            // Định dạng trả về có dạng: "Thứ Sáu, 3 Tháng Bảy, 2026"
+            let formattedDate = capitalizeWords(rawDateStr);
+
+            // 3. Tính toán số tuần hiện tại
+            let weekNum = getWeekNumber(t);
+
+            // Gộp chuỗi ngày tháng và số tuần hiển thị lên màn hình
+            document.getElementById('date-string').innerText = `${formattedDate}, tuần ${weekNum}`;
+        }
+    }, 1000);
+
+    fetchExactTime();
+    setInterval(fetchExactTime, 20000);
+</script>
+
+</body>
+</html>
