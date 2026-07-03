@@ -9,13 +9,14 @@
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
             background-image: url('https://i.pinimg.com/736x/47/e7/58/47e75837f70d33eb1ae436bd4628af7f.jpg'); 
             background-size: contain; 
-            background-position: left center; 
+            background-position: right center; /* GIỮ HÌNH CU SHIN NẰM BÊN PHẢI MÀN HÌNH */
             background-repeat: no-repeat;
-            background-color: #ffffff; /* Nền trắng tinh toàn trang */
+            background-color: #ffffff; 
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: center;
+            /* ĐẨY TOÀN BỘ CỤM NỘI DUNG SANG BÊN TRÁI MÀN HÌNH (Vùng ô đỏ của bạn) */
+            justify-content: flex-start; 
             align-items: center;
             height: 100vh;
             overflow: hidden;
@@ -30,60 +31,61 @@
             z-index: 1;
         }
 
-        /* Khung chứa căn giữa màn hình */
+        /* Hộp chứa lớn nằm gọn bên góc trái */
         .container {
             position: relative;
             z-index: 2;
-            width: 85%;
-            max-width: 1200px;
+            width: 50%; /* Giới hạn chiều rộng chiếm nửa bên trái màn hình */
+            padding-left: 6%; /* Khoảng cách lùi vào từ mép trái màn hình */
             display: flex;
             flex-direction: column;
-            align-items: center; 
-            margin-top: -40px;
+            align-items: flex-start; /* Căn lề trái toàn bộ chữ bên trong */
+            margin-top: -80px; /* Nhấc toàn bộ cụm chữ lên cao trùng khớp vùng đỏ */
         }
 
+        /* THAY ĐỔI: Tiêu đề in đậm và to hơn theo yêu cầu */
         .title {
-            font-size: 20px;
-            color: #333333;
-            font-weight: 400;
-            margin-bottom: 0px;
-            text-align: center;
+            font-size: 26px; /* Tăng kích thước chữ to hơn */
+            color: #1a1a1a;
+            font-weight: 800; /* Làm chữ in đậm hẳn lên */
+            margin-bottom: 15px;
+            text-align: left;
             width: 100%;
+            letter-spacing: -0.5px;
         }
 
-        /* ĐỒNG HỒ SỐ CĂN GIỮA - SIÊU TO KHỔNG LỒ */
+        /* Khối hiển thị chính chứa Đồng hồ và Ngày tháng xếp chồng sát nhau */
+        .main-display {
+            display: flex;
+            flex-direction: column; /* Xếp đồng hồ trên, ngày tháng dưới */
+            align-items: flex-end; /* Căn lề theo mép bên phải của khối chữ */
+        }
+
+        /* ĐỒNG HỒ SỐ NẰM GỌN BÊN TRÁI */
         .time {
-            font-size: 200px; 
+            font-size: 160px; /* Kích thước siêu to rõ nét */
             font-weight: 800; 
             font-family: Arial, Helvetica, sans-serif; 
             color: #262626; 
-            line-height: 0.95;
-            letter-spacing: -6px; 
-            text-align: center;
-            width: 100%;
-            margin: 10px 0 0 0;
+            line-height: 0.9;
+            letter-spacing: -5px;
+            margin: 0;
         }
 
-        /* THAY ĐỔI: ÉP KHỐI NGÀY THÁNG DẠT HẲN SANG GÓC TRÁI DƯỚI ĐỒNG HỒ */
-        .date-box {
-            width: 100%;
-            display: flex;
-            justify-content: flex-start; /* Đổi thành flex-start để đẩy chữ sang bên trái */
-            padding-left: 4%; /* Căn lề thụt vào một chút cho thẳng với mép chữ số đầu tiên */
-            margin-top: -5px; 
-        }
-
+        /* THAY ĐỔI: Ngày tháng nằm ngay phía dưới bên phải của đồng hồ số */
         .date {
-            font-size: 34px; 
+            font-size: 32px; 
             color: #262626;
-            font-weight: 400;
-            white-space: nowrap;
+            font-weight: 500;
+            white-space: nowrap; 
+            margin-top: 10px; /* Khoảng cách ngay dưới đáy của đồng hồ số */
+            text-align: right; /* Ép chữ căn sát lề phải của đồng hồ */
         }
 
         .instruction {
             position: absolute;
             bottom: 25px;
-            right: 40px; 
+            left: 60px; /* Chuyển dòng ghi chú nhỏ sang góc trái dưới cùng */
             font-size: 13px;
             color: #777777;
             font-weight: bold;
@@ -95,9 +97,9 @@
 <div class="container">
     <div class="title">Thời gian ở Thành phố Hồ Chí Minh, Việt Nam hiện tại:</div>
     
-    <div class="time" id="clock">00:00:00</div>
-    
-    <div class="date-box">
+    <div class="main-display">
+        <div class="time" id="clock">00:00:00</div>
+        
         <div class="date" id="date-string">Đang đồng bộ...</div>
     </div>
 </div>
@@ -109,7 +111,6 @@
 <script>
     let currentTimestamp = null;
 
-    // Hàm tính số tuần chuẩn
     function getWeekNumber(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -118,7 +119,6 @@
         return weekNo;
     }
 
-    // Hàm viết hoa chữ cái đầu tiên chuẩn chỉnh chính tả tiếng Việt
     function formatStandardVietnameseDate(str) {
         if (!str) return str;
         let lower = str.toLowerCase();
@@ -141,7 +141,7 @@
             }
         }
     }
- 
+
     setInterval(() => {
         if (currentTimestamp !== null) {
             currentTimestamp += 1000;
