@@ -7,11 +7,11 @@
     <style>
         body {
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-            background-image: url('https://i.pinimg.com/736x/e3/20/7f/e3207f35fe921619f10e7d012a5b1eeb.jpg'); 
+            background-image: url('https://i.pinimg.com/736x/47/e7/58/47e75837f70d33eb1ae436bd4628af7f.jpg'); 
             background-size: contain; 
             background-position: left center; 
             background-repeat: no-repeat;
-            background-color: #ffffff; /* THAY ĐỔI: Đồng bộ nền trắng tinh toàn bộ trang */
+            background-color: #ffffff; /* Nền trắng tinh toàn trang */
             margin: 0;
             padding: 0;
             display: flex;
@@ -22,53 +22,62 @@
             position: relative;
         }
 
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.15); 
+            z-index: 1;
+        }
+
+        /* Khung chứa căn giữa màn hình */
         .container {
             position: relative;
             z-index: 2;
-            width: 90%;
-            max-width: 1300px;
+            width: 85%;
+            max-width: 1200px;
             display: flex;
             flex-direction: column;
-            /* Đẩy toàn bộ cụm hiển thị lên phía trên để né bọt biển */
-            margin-top: -120px; 
+            align-items: center; 
+            margin-top: -40px;
         }
 
         .title {
             font-size: 20px;
             color: #333333;
             font-weight: 400;
-            margin-bottom: 10px;
+            margin-bottom: 0px;
             text-align: center;
             width: 100%;
         }
 
-        /* Khung chứa bao gồm Đồng hồ (Trái) và Ngày tháng (Phải) */
-        .main-display {
-            display: flex;
-            align-items: flex-end; /* Căn hàng theo cạnh đáy dưới */
-            justify-content: center;
-            width: 100%;
-            gap: 40px; /* Khoảng cách giữa đồng hồ và ngày tháng */
-        }
-
-        /* ĐỒNG HỒ SỐ TO ĐẬM */
+        /* ĐỒNG HỒ SỐ CĂN GIỮA - SIÊU TO KHỔNG LỒ */
         .time {
-            font-size: 160px; 
+            font-size: 200px; 
             font-weight: 800; 
             font-family: Arial, Helvetica, sans-serif; 
             color: #262626; 
-            line-height: 0.9;
-            letter-spacing: -4px;
-            margin: 0;
+            line-height: 0.95;
+            letter-spacing: -6px; 
+            text-align: center;
+            width: 100%;
+            margin: 10px 0 0 0;
         }
 
-        /* PHẦN NGÀY THÁNG ĐƯỢC ĐẨY SANG GÓC PHẢI CỦA ĐỒNG HỒ */
+        /* THAY ĐỔI: ÉP KHỐI NGÀY THÁNG DẠT HẲN SANG GÓC TRÁI DƯỚI ĐỒNG HỒ */
+        .date-box {
+            width: 100%;
+            display: flex;
+            justify-content: flex-start; /* Đổi thành flex-start để đẩy chữ sang bên trái */
+            padding-left: 4%; /* Căn lề thụt vào một chút cho thẳng với mép chữ số đầu tiên */
+            margin-top: -5px; 
+        }
+
         .date {
-            font-size: 28px; 
+            font-size: 34px; 
             color: #262626;
-            font-weight: 500;
-            white-space: nowrap; /* Không cho chữ tự động xuống dòng */
-            margin-bottom: 10px; /* Nhấc chữ lên một chút cho cân với đáy số đồng hồ */
+            font-weight: 400;
+            white-space: nowrap;
         }
 
         .instruction {
@@ -86,9 +95,9 @@
 <div class="container">
     <div class="title">Thời gian ở Thành phố Hồ Chí Minh, Việt Nam hiện tại:</div>
     
-    <div class="main-display">
-        <div class="time" id="clock">00:00:00</div>
-        
+    <div class="time" id="clock">00:00:00</div>
+    
+    <div class="date-box">
         <div class="date" id="date-string">Đang đồng bộ...</div>
     </div>
 </div>
@@ -100,7 +109,7 @@
 <script>
     let currentTimestamp = null;
 
-    // Hàm tính số tuần
+    // Hàm tính số tuần chuẩn
     function getWeekNumber(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -109,7 +118,7 @@
         return weekNo;
     }
 
-    // THAY ĐỔI: Hàm sửa lỗi chính tả - Chỉ viết in hoa chữ cái đầu tiên của toàn bộ chuỗi
+    // Hàm viết hoa chữ cái đầu tiên chuẩn chỉnh chính tả tiếng Việt
     function formatStandardVietnameseDate(str) {
         if (!str) return str;
         let lower = str.toLowerCase();
@@ -146,7 +155,6 @@
             let options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
             let rawDateStr = t.toLocaleDateString('vi-VN', options); 
             
-            // Xử lý chuỗi ngày tháng chuẩn chỉnh (Chỉ hoa chữ đầu câu)
             let formattedDate = formatStandardVietnameseDate(rawDateStr);
             let weekNum = getWeekNumber(t);
             
