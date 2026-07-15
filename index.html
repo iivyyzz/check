@@ -109,98 +109,84 @@
 </div>
 
 <script>
+    // timeOffset là khoảng chênh lệch động giữa Thời gian máy chủ chuẩn và Thiết bị cục bộ
     let timeOffset = 0;
-    let isTimeSynced = false;
+    const VIETNAM_TIMEZONE_OFFSET = 7 * 60 * 60 * 1000; // Khóa cứng +7 tiếng (mili-giây) cho Việt Nam
 
     function getWeekNumber(d) {
-        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-        var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
-        return weekNo;
+        // Sử dụng UTC hoàn toàn để đảm bảo tính toán số tuần không bị ảnh hưởng bởi múi giờ máy khách
+        const utcDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+        utcDate.setUTCDate(utcDate.getUTCDate() + 4 - (utcDate.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+        return Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
     }
 
-    function formatStandardVietnameseDate(str) {
-        if (!str) return str;
-        let lower = str.toLowerCase();
-        return lower.charAt(0).toUpperCase() + lower.slice(1);
+    function formatStandardVietnameseDate(dayOfWeek, day, month, year) {
+        const weekdays = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+        return `${weekdays[dayOfWeek]}, ngày ${day} tháng ${month}, ${year}`;
     }
 
-    async function fetchExactTime() {
+    // Cơ chế đồng bộ giờ máy chủ trung tâm chống gian lận
+    async function syncWithServerTime() {
         const startTime = Date.now();
-        let serverTime = null;
-
-        // Danh sách các nguồn lấy giờ chuẩn (Ưu tiên các nguồn cực nhanh và không bị chặn)
-        const apis = [
-            async () => {
-                // Thử lấy giờ chuẩn từ API của worldtimeapi
-                let res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh', { cache: 'no-store' });
-                let data = await res.json();
-                return new Date(data.datetime).getTime();
-            },
-            async () => {
-                // Dự phòng 1: Dùng timeapi.io
-                let res = await fetch('https://timeapi.io/api/Time/current/zone?timeZone=Asia/Ho_Chi_Minh', { cache: 'no-store' });
-                let data = await res.json();
-                return new Date(data.dateTime).getTime();
-            },
-            async () => {
-                // Dự phòng 2: Lấy trực tiếp thời gian thực từ Header của chính Github để chống bị các bên chặn API
-                let resHeader = await fetch(window.location.href, { method: 'HEAD', cache: 'no-store' });
-                let dateStr = resHeader.headers.get('Date');
-                return dateStr ? new Date(dateStr).getTime() : null;
-            }
-        ];
-
-        for (let api of apis) {
-            try {
-                let time = await api();
-                if (time) {
-                    serverTime = time;
-                    break; // Lấy thành công thì dừng lại ngay
-                }
-            } catch (e) {
-                console.log("Nguồn lấy giờ gặp lỗi, thử nguồn dự phòng tiếp theo...");
-            }
-        }
-
-        if (serverTime) {
-            const endTime = Date.now();
-            const networkDelay = (endTime - startTime) / 2;
-            const accurateServerTime = serverTime + networkDelay;
+        try {
+            // Fetch thẳng lên chính URL hiện tại kèm tham số ngẫu nhiên để ép máy chủ bypass CDN Cache
+            const response = await fetch(window.location.origin + window.location.pathname + '?nocache=' + startTime, { 
+                method: 'HEAD', 
+                cache: 'no-store' 
+            });
             
-            // Tính toán khoảng lệch chuẩn xác giữa giờ thực tế và giờ hệ thống máy khách
-            timeOffset = accurateServerTime - endTime;
-            isTimeSynced = true;
-            console.log("Đã đồng bộ giờ thành công! Độ lệch máy: " + (timeOffset / 1000) + " giây.");
+            const serverDateStr = response.headers.get('Date');
+            if (serverDateStr) {
+                const serverTimeUTC = new Date(serverDateStr).getTime(); // Luôn luôn là giờ chuẩn UTC từ GitHub
+                const endTime = Date.now();
+                const networkDelay = (endTime - startTime) / 2; // Bù sai số trễ gói tin mạng
+                
+                // Công thức tính khoảng offset chuẩn:
+                // Giờ thực tế máy chủ (UTC) = Giờ thiết bị cục bộ + timeOffset
+                timeOffset = (serverTimeUTC + networkDelay) - endTime;
+            }
+        } catch (e) {
+            console.warn("Không thể đồng bộ thời gian thực tế với máy chủ GitHub. Đang sử dụng chế độ dự phòng.");
         }
     }
 
+    // Render đồng hồ từ offset chuẩn
     function updateClock() {
-        // Luôn cộng độ lệch chuẩn để ép đồng hồ chạy đúng giờ thực tế bất chấp giờ máy tính của bạn bị sai
-        const currentMs = Date.now() + timeOffset;
-        const t = new Date(currentMs);
+        const localNow = Date.now();
+        const currentMsUTC = localNow + timeOffset; // Giờ chuẩn UTC tại thời điểm hiện tại
         
-        let h = String(t.getHours()).padStart(2, '0');
-        let m = String(t.getMinutes()).padStart(2, '0');
-        let s = String(t.getSeconds()).padStart(2, '0');
+        // Tạo đối tượng Date chứa giờ chuẩn của Việt Nam bằng cách cộng cứng lệch múi giờ (+7)
+        // và triệt tiêu múi giờ cục bộ của thiết bị bằng phương thức getUTC...
+        const vnTime = new Date(currentMsUTC + VIETNAM_TIMEZONE_OFFSET);
+        
+        const h = String(vnTime.getUTCHours()).padStart(2, '0');
+        const m = String(vnTime.getUTCMinutes()).padStart(2, '0');
+        const s = String(vnTime.getUTCSeconds()).padStart(2, '0');
         document.getElementById('clock').innerText = `${h}:${m}:${s}`;
 
-        let options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-        let rawDateStr = t.toLocaleDateString('vi-VN', options); 
-        
-        let formattedDate = formatStandardVietnameseDate(rawDateStr);
-        let weekNum = getWeekNumber(t);
+        const rawDayOfWeek = vnTime.getUTCDay();
+        const rawDay = vnTime.getUTCDate();
+        const rawMonth = vnTime.getUTCMonth() + 1;
+        const rawYear = vnTime.getUTCFullYear();
+
+        const formattedDate = formatStandardVietnameseDate(rawDayOfWeek, rawDay, rawMonth, rawYear);
+        const weekNum = getWeekNumber(vnTime);
         
         document.getElementById('date-string').innerText = `${formattedDate}, tuần ${weekNum}`;
     }
 
-    // Chạy cập nhật đồng hồ mỗi giây
+    // Chạy render đồng hồ liên tục 1 giây một lần
     setInterval(updateClock, 1000);
 
-    // Tiến hành đồng bộ giờ ngay khi tải trang và lặp lại mỗi 30 giây
-    fetchExactTime().then(updateClock);
-    setInterval(fetchExactTime, 30000);
+    // Chạy khởi tạo lần đầu ngay lập tức
+    updateClock();
+
+    // Gọi đồng bộ hóa lần đầu tiên khi tải trang
+    syncWithServerTime().then(updateClock);
+
+    // Đồng bộ định kỳ 15 giây/lần để luôn bắt kịp sai số và chống gian lận giữa chừng
+    setInterval(syncWithServerTime, 15000);
 </script>
 
 </body>
