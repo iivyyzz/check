@@ -23,7 +23,6 @@
             position: relative;
         }
 
-        
         body::before {
             content: "";
             position: absolute;
@@ -110,7 +109,6 @@
 </div>
 
 <script>
-    // timeOffset lưu trữ khoảng chênh lệch giữa (Thời gian thực API) và (Thời gian hệ thống máy khách)
     let timeOffset = 0;
     let isTimeSynced = false;
 
@@ -129,38 +127,58 @@
     }
 
     async function fetchExactTime() {
+        const startTime = Date.now();
         let serverTime = null;
-        const startTime = Date.now(); // Ghi nhận mốc bắt đầu gửi request để bù trừ độ trễ mạng (RTT)
 
-        try {
-            let response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
-            let data = await response.json();
-            serverTime = new Date(data.datetime).getTime();
-        } catch (e) {
+        // Danh sách các nguồn lấy giờ chuẩn (Ưu tiên các nguồn cực nhanh và không bị chặn)
+        const apis = [
+            async () => {
+                // Thử lấy giờ chuẩn từ API của worldtimeapi
+                let res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh', { cache: 'no-store' });
+                let data = await res.json();
+                return new Date(data.datetime).getTime();
+            },
+            async () => {
+                // Dự phòng 1: Dùng timeapi.io
+                let res = await fetch('https://timeapi.io/api/Time/current/zone?timeZone=Asia/Ho_Chi_Minh', { cache: 'no-store' });
+                let data = await res.json();
+                return new Date(data.dateTime).getTime();
+            },
+            async () => {
+                // Dự phòng 2: Lấy trực tiếp thời gian thực từ Header của chính Github để chống bị các bên chặn API
+                let resHeader = await fetch(window.location.href, { method: 'HEAD', cache: 'no-store' });
+                let dateStr = resHeader.headers.get('Date');
+                return dateStr ? new Date(dateStr).getTime() : null;
+            }
+        ];
+
+        for (let api of apis) {
             try {
-                let response = await fetch('https://timeapi.io/api/Time/current/zone?timeZone=Asia/Ho_Chi_Minh');
-                let data = await response.json();
-                serverTime = new Date(data.dateTime).getTime();
-            } catch (err) {
-                console.log("Không thể kết nối API thời gian chuẩn. Sử dụng thời gian thiết bị.");
+                let time = await api();
+                if (time) {
+                    serverTime = time;
+                    break; // Lấy thành công thì dừng lại ngay
+                }
+            } catch (e) {
+                console.log("Nguồn lấy giờ gặp lỗi, thử nguồn dự phòng tiếp theo...");
             }
         }
 
         if (serverTime) {
             const endTime = Date.now();
-            const networkDelay = (endTime - startTime) / 2; // Độ trễ truyền tải ước tính
+            const networkDelay = (endTime - startTime) / 2;
             const accurateServerTime = serverTime + networkDelay;
             
-            // Tính toán độ lệch giữa Server chuẩn và Máy khách
+            // Tính toán khoảng lệch chuẩn xác giữa giờ thực tế và giờ hệ thống máy khách
             timeOffset = accurateServerTime - endTime;
             isTimeSynced = true;
+            console.log("Đã đồng bộ giờ thành công! Độ lệch máy: " + (timeOffset / 1000) + " giây.");
         }
     }
 
-    // Cập nhật giao diện đồng hồ mượt mà từng giây
     function updateClock() {
-        // Thời gian hiện tại = Thời gian máy khách + Khoảng chênh lệch (nếu đã đồng bộ thành công)
-        const currentMs = Date.now() + (isTimeSynced ? timeOffset : 0);
+        // Luôn cộng độ lệch chuẩn để ép đồng hồ chạy đúng giờ thực tế bất chấp giờ máy tính của bạn bị sai
+        const currentMs = Date.now() + timeOffset;
         const t = new Date(currentMs);
         
         let h = String(t.getHours()).padStart(2, '0');
@@ -177,12 +195,12 @@
         document.getElementById('date-string').innerText = `${formattedDate}, tuần ${weekNum}`;
     }
 
-    // Chạy cập nhật liên tục mỗi giây
+    // Chạy cập nhật đồng hồ mỗi giây
     setInterval(updateClock, 1000);
 
-    // Lấy thời gian chuẩn khi tải trang và cập nhật lại mỗi 20 giây để tránh trôi lệch giờ
+    // Tiến hành đồng bộ giờ ngay khi tải trang và lặp lại mỗi 30 giây
     fetchExactTime().then(updateClock);
-    setInterval(fetchExactTime, 20000);
+    setInterval(fetchExactTime, 30000);
 </script>
 
 </body>
