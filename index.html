@@ -109,7 +109,9 @@
 </div>
 
 <script>
-    let currentTimestamp = null;
+    // timeOffset lưu trữ khoảng chênh lệch giữa (Thời gian thực API) và (Thời gian hệ thống máy khách)
+    let timeOffset = 0;
+    let isTimeSynced = false;
 
     function getWeekNumber(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -126,43 +128,59 @@
     }
 
     async function fetchExactTime() {
+        let serverTime = null;
+        const startTime = Date.now(); // Ghi nhận mốc bắt đầu gửi request để bù trừ độ trễ mạng (RTT)
+
         try {
             let response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Ho_Chi_Minh');
             let data = await response.json();
-            currentTimestamp = new Date(data.datetime).getTime();
+            serverTime = new Date(data.datetime).getTime();
         } catch (e) {
             try {
                 let response = await fetch('https://timeapi.io/api/Time/current/zone?timeZone=Asia/Ho_Chi_Minh');
                 let data = await response.json();
-                currentTimestamp = new Date(data.dateTime).getTime();
+                serverTime = new Date(data.dateTime).getTime();
             } catch (err) {
-                console.log("Không thể kết nối API thời gian chuẩn.");
-                if(!currentTimestamp) currentTimestamp = new Date().getTime();
+                console.log("Không thể kết nối API thời gian chuẩn. Sử dụng thời gian thiết bị.");
             }
+        }
+
+        if (serverTime) {
+            const endTime = Date.now();
+            const networkDelay = (endTime - startTime) / 2; // Độ trễ truyền tải ước tính
+            const accurateServerTime = serverTime + networkDelay;
+            
+            // Tính toán độ lệch giữa Server chuẩn và Máy khách
+            timeOffset = accurateServerTime - endTime;
+            isTimeSynced = true;
         }
     }
 
-    setInterval(() => {
-        if (currentTimestamp !== null) {
-            currentTimestamp += 1000;
-            let t = new Date(currentTimestamp);
-            
-            let h = String(t.getHours()).padStart(2, '0');
-            let m = String(t.getMinutes()).padStart(2, '0');
-            let s = String(t.getSeconds()).padStart(2, '0');
-            document.getElementById('clock').innerText = `${h}:${m}:${s}`;
+    // Cập nhật giao diện đồng hồ mượt mà từng giây
+    function updateClock() {
+        // Thời gian hiện tại = Thời gian máy khách + Khoảng chênh lệch (nếu đã đồng bộ thành công)
+        const currentMs = Date.now() + (isTimeSynced ? timeOffset : 0);
+        const t = new Date(currentMs);
+        
+        let h = String(t.getHours()).padStart(2, '0');
+        let m = String(t.getMinutes()).padStart(2, '0');
+        let s = String(t.getSeconds()).padStart(2, '0');
+        document.getElementById('clock').innerText = `${h}:${m}:${s}`;
 
-            let options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-            let rawDateStr = t.toLocaleDateString('vi-VN', options); 
-            
-            let formattedDate = formatStandardVietnameseDate(rawDateStr);
-            let weekNum = getWeekNumber(t);
-            
-            document.getElementById('date-string').innerText = `${formattedDate}, tuần ${weekNum}`;
-        }
-    }, 1000);
+        let options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+        let rawDateStr = t.toLocaleDateString('vi-VN', options); 
+        
+        let formattedDate = formatStandardVietnameseDate(rawDateStr);
+        let weekNum = getWeekNumber(t);
+        
+        document.getElementById('date-string').innerText = `${formattedDate}, tuần ${weekNum}`;
+    }
 
-    fetchExactTime();
+    // Chạy cập nhật liên tục mỗi giây
+    setInterval(updateClock, 1000);
+
+    // Lấy thời gian chuẩn khi tải trang và cập nhật lại mỗi 20 giây để tránh trôi lệch giờ
+    fetchExactTime().then(updateClock);
     setInterval(fetchExactTime, 20000);
 </script>
 
